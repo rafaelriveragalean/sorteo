@@ -1198,8 +1198,22 @@
     document.getElementById('previewImg').src = '';
   }
 
-  // ── Armar texto del pedido ───────────────────────────
-  function buildMessage() {
+  // ── Subir comprobante a Cloudinary ──────────────────
+  async function uploadComprobante(file) {
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+    fd.append('folder', 'comprobantes_cursoIA');
+    const res  = await fetch('https://api.cloudinary.com/v1_1/' + CLOUDINARY_CLOUD_NAME + '/upload', {
+      method: 'POST', body: fd
+    });
+    const data = await res.json();
+    if (!data.secure_url) throw new Error('Upload fallido');
+    return data.secure_url;
+  }
+
+  // ── Armar y enviar mensaje a WhatsApp ───────────────
+  function sendToWhatsApp(comprobanteUrl) {
     const p      = plans[currentPlan];
     const nombre = document.getElementById('nombre').value.trim();
     const ape    = document.getElementById('apellidos').value.trim();
@@ -1226,25 +1240,13 @@
     if (razon && razon !== 'SIN NOMBRE') msg += '▸ Razón Social: ' + razon + '\n';
     if (nit && nit !== '0') msg += '▸ NIT: ' + nit + '\n';
     msg += '━━━━━━━━━━━━━━━━━━━━━━\n';
-    msg += '📎 Comprobante adjunto en esta conversación.';
-    return msg;
-  }
-
-  // ── Envío nativo con imagen (Web Share API) ──────────
-  async function shareWithImage(msg, file) {
-    // Asegurarse que el archivo tenga el tipo correcto para compartir
-    const shareFile = new File([file], file.name, { type: file.type });
-    const shareData = { text: msg, files: [shareFile] };
-
-    if (navigator.canShare && navigator.canShare(shareData)) {
-      await navigator.share(shareData);
-      return true;
+    if (comprobanteUrl) {
+      msg += '📎 *Comprobante de pago:*\n' + comprobanteUrl;
+    } else {
+      msg += '⚠️ Sin comprobante adjunto';
     }
-    return false; // No soportado, usar fallback
-  }
 
-  // ── Fallback: abrir WhatsApp solo con texto ──────────
-  function openWhatsAppText(msg) {
+    // Abre WhatsApp directo al número configurado
     window.open('https://wa.me/' + WHATSAPP_NUMBER + '?text=' + encodeURIComponent(msg), '_blank');
   }
 
@@ -1267,37 +1269,21 @@
     }
 
     const btn = document.querySelector('.btn-pedido');
-    btn.textContent = '⏳ Enviando...';
+    btn.textContent = '⏳ Subiendo comprobante...';
     btn.disabled = true;
 
     try {
-      const msg = buildMessage();
-
+      let comprobanteUrl = '';
       if (comprobanteFile) {
-        // Intentar compartir imagen + texto juntos via share nativa
-        const shared = await shareWithImage(msg, comprobanteFile);
-        if (!shared) {
-          // Fallback: abrir WhatsApp con texto, avisar que imagen va separada
-          openWhatsAppText(msg);
-          alert('Tu dispositivo no soporta adjuntar archivos automáticamente.\n\nSe abrió WhatsApp con el texto del pedido. Por favor envía también la foto del comprobante en la misma conversación.');
-        }
-      } else {
-        // Sin comprobante, solo texto
-        openWhatsAppText(msg);
+        comprobanteUrl = await uploadComprobante(comprobanteFile);
       }
-
+      sendToWhatsApp(comprobanteUrl);
       btn.textContent = '✅ ¡Pedido enviado!';
       setTimeout(() => { btn.textContent = '🛒 Realizar el Pedido'; btn.disabled = false; }, 3500);
     } catch (err) {
-      if (err.name === 'AbortError') {
-        // Usuario canceló el share sheet — no es un error real
-        btn.textContent = '🛒 Realizar el Pedido';
-        btn.disabled = false;
-        return;
-      }
       console.error(err);
-      // Fallback final
-      openWhatsAppText(buildMessage());
+      // Si falla el upload, igual abre WhatsApp sin la imagen
+      sendToWhatsApp('');
       btn.textContent = '🛒 Realizar el Pedido';
       btn.disabled = false;
     }
