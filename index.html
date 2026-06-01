@@ -1225,28 +1225,32 @@
     const nit    = document.getElementById('nit').value.trim();
 
     let msg = '';
-    msg += '🛒 *NUEVO PEDIDO – Curso IA 2025*\n';
-    msg += '━━━━━━━━━━━━━━━━━━━━━━\n';
-    msg += '📦 *Plan:* ' + p.name + '\n';
-    msg += '💰 *Total:* ' + fmt(p.price) + '\n';
-    msg += '🎟 *Cupones sorteo:* ' + p.cupones + '\n';
-    msg += '━━━━━━━━━━━━━━━━━━━━━━\n';
-    msg += '👤 *Datos del cliente*\n';
-    msg += '▸ Nombre: ' + nombre + ' ' + ape + '\n';
-    msg += '▸ País: ' + pais + '\n';
-    msg += '▸ CI/Pasaporte: ' + ci + '\n';
-    msg += '▸ Teléfono: ' + tel + '\n';
-    msg += '▸ Email: ' + email + '\n';
-    if (razon && razon !== 'SIN NOMBRE') msg += '▸ Razón Social: ' + razon + '\n';
-    if (nit && nit !== '0') msg += '▸ NIT: ' + nit + '\n';
-    msg += '━━━━━━━━━━━━━━━━━━━━━━\n';
+
+    // URL primero → WhatsApp la renderiza como preview de imagen
     if (comprobanteUrl) {
-      msg += '📎 *Comprobante de pago:*\n' + comprobanteUrl;
-    } else {
-      msg += '⚠️ Sin comprobante adjunto';
+      msg += comprobanteUrl + '\n\n';
     }
 
-    // Abre WhatsApp directo al número configurado
+    msg += '🧾 *COMPROBANTE DE PAGO*\n';
+    msg += '🎓 *CURSO IA 2025 – Santa Cruz*\n\n';
+
+    msg += '📦 *Plan:* ' + p.name + '\n';
+    msg += '💰 *Total pagado:* ' + fmt(p.price) + '\n';
+    msg += '🎟️ *Cupones sorteo:* ' + p.cupones + '\n\n';
+
+    msg += '👤 *Datos del cliente*\n';
+    msg += '🙍 Nombre: ' + nombre + ' ' + ape + '\n';
+    msg += '🌎 País: ' + pais + '\n';
+    msg += '🪪 CI/Pasaporte: ' + ci + '\n';
+    msg += '📱 Teléfono: ' + tel + '\n';
+    msg += '📧 Email: ' + email + '\n';
+    if (razon && razon !== 'SIN NOMBRE') msg += '🏢 Razón Social: ' + razon + '\n';
+    if (nit && nit !== '0') msg += '🔢 NIT: ' + nit + '\n';
+
+    if (!comprobanteUrl) {
+      msg += '\n⚠️ Sin comprobante adjunto';
+    }
+
     window.open('https://wa.me/' + WHATSAPP_NUMBER + '?text=' + encodeURIComponent(msg), '_blank');
   }
 
