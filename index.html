@@ -1198,8 +1198,8 @@
     document.getElementById('previewImg').src = '';
   }
 
-  // ── Armar texto del pedido ───────────────────────────
-  function buildOrderText() {
+  // ── Armar texto del pedido ──────────────────────────
+  function buildMsg() {
     const p      = plans[currentPlan];
     const nombre = document.getElementById('nombre').value.trim();
     const ape    = document.getElementById('apellidos').value.trim();
@@ -1209,7 +1209,6 @@
     const email  = document.getElementById('email').value.trim();
     const razon  = document.getElementById('razon').value.trim();
     const nit    = document.getElementById('nit').value.trim();
-
     let msg = '';
     msg += '🧾 *COMPROBANTE DE PAGO*\n';
     msg += '🎓 *CURSO IA 2025 – Santa Cruz*\n\n';
@@ -1225,22 +1224,6 @@
     if (razon && razon !== 'SIN NOMBRE') msg += '🏢 Razón Social: ' + razon + '\n';
     if (nit && nit !== '0') msg += '🔢 NIT: ' + nit + '\n';
     return msg;
-  }
-
-  // ── Paso 1: Compartir imagen real vía share nativo ────
-  async function shareImageNative(file, texto) {
-    const shareFile = new File([file], file.name, { type: file.type });
-    const shareData = { files: [shareFile], text: texto };
-    if (navigator.canShare && navigator.canShare(shareData)) {
-      await navigator.share(shareData);
-      return true;
-    }
-    return false;
-  }
-
-  // ── Paso 2: Abrir WhatsApp directo con texto ──────────
-  function openWhatsAppText(msg) {
-    window.open('https://wa.me/' + WHATSAPP_NUMBER + '?text=' + encodeURIComponent(msg), '_blank');
   }
 
   // ── Submit principal ─────────────────────────────────
@@ -1263,48 +1246,48 @@
 
     const btn = document.querySelector('.btn-pedido');
     btn.disabled = true;
+    const msg = buildMsg();
 
     try {
-      const texto = buildOrderText();
-
       if (comprobanteFile) {
-        btn.textContent = '📤 Paso 1/2: Enviando imagen...';
+        // ── Web Share API: imagen como burbuja real en WhatsApp ──
+        // (igual que Pasión Mundialista)
+        const shareFile = new File([comprobanteFile], comprobanteFile.name, { type: comprobanteFile.type });
+        const shareData = { files: [shareFile], text: msg };
 
-        // Paso 1: share nativo → imagen real en WhatsApp
-        // El usuario elige WhatsApp y selecciona el contacto 75865539
-        const shared = await shareImageNative(comprobanteFile, '📎 Comprobante de pago – Curso IA 2025');
-
-        if (shared) {
-          // Paso 2: después de compartir la imagen, abrir WA con los datos del pedido
-          btn.textContent = '📋 Paso 2/2: Enviando datos...';
-          setTimeout(() => {
-            openWhatsAppText(texto);
-          }, 1500);
+        if (navigator.canShare && navigator.canShare(shareData)) {
+          btn.textContent = '📤 Compartiendo...';
+          try {
+            await navigator.share(shareData);
+            // Después del share, abrir WhatsApp directo con los datos
+            setTimeout(() => {
+              window.open('https://wa.me/' + WHATSAPP_NUMBER + '?text=' + encodeURIComponent(msg), '_blank');
+            }, 800);
+          } catch (shareErr) {
+            if (shareErr.name !== 'AbortError') {
+              // Fallback: wa.me solo con texto
+              window.open('https://wa.me/' + WHATSAPP_NUMBER + '?text=' + encodeURIComponent(msg + '\n⚠️ Adjuntar comprobante manualmente.'), '_blank');
+            }
+          }
         } else {
-          // Dispositivo no soporta Web Share con archivos → fallback solo texto
-          openWhatsAppText(texto + '\n\n⚠️ Comprobante no enviado automáticamente. Por favor envíalo por separado.');
+          // Navegador no soporta share con archivos → wa.me directo
+          window.open('https://wa.me/' + WHATSAPP_NUMBER + '?text=' + encodeURIComponent(msg + '\n\n📎 Adjuntar comprobante en esta conversación.'), '_blank');
         }
       } else {
-        // Sin comprobante, solo texto directo al número
-        openWhatsAppText(texto + '\n\n⚠️ Sin comprobante adjunto');
+        // Sin comprobante → directo al número
+        window.open('https://wa.me/' + WHATSAPP_NUMBER + '?text=' + encodeURIComponent(msg + '\n\n⚠️ Sin comprobante adjunto.'), '_blank');
       }
 
       btn.textContent = '✅ ¡Pedido enviado!';
       setTimeout(() => { btn.textContent = '🛒 Realizar el Pedido'; btn.disabled = false; }, 3500);
-
     } catch (err) {
-      if (err.name === 'AbortError') {
-        // Usuario canceló el share — no es error
-        btn.textContent = '🛒 Realizar el Pedido';
-        btn.disabled = false;
-        return;
-      }
       console.error(err);
-      openWhatsAppText(buildOrderText());
+      window.open('https://wa.me/' + WHATSAPP_NUMBER + '?text=' + encodeURIComponent(msg), '_blank');
       btn.textContent = '🛒 Realizar el Pedido';
       btn.disabled = false;
     }
   }
+
 
   window.addEventListener('scroll', () => {
     document.getElementById('scrollTop').style.opacity = window.scrollY > 300 ? '1' : '0';
